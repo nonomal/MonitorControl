@@ -1,99 +1,8 @@
 import Cocoa
-import DDC
 import os.log
 import ServiceManagement
 
 class Utils: NSObject {
-  // MARK: - Menu
-
-  /// Create a slider and add it to the menu
-  ///
-  /// - Parameters:
-  ///   - menu: Menu containing the slider
-  ///   - display: Display to control
-  ///   - command: Command (Brightness/Volume/...)
-  ///   - title: Title of the slider
-  /// - Returns: An `NSSlider` slider
-  static func addSliderMenuItem(toMenu menu: NSMenu, forDisplay display: ExternalDisplay, command: DDC.Command, title: String) -> SliderHandler {
-    let item = NSMenuItem()
-
-    let handler = SliderHandler(display: display, command: command)
-
-    let slider = NSSlider(value: 0, minValue: 0, maxValue: 100, target: handler, action: #selector(SliderHandler.valueChanged))
-    slider.isEnabled = false
-    slider.frame.size.width = 180
-    slider.frame.origin = NSPoint(x: 20, y: 5)
-
-    handler.slider = slider
-
-    let view = NSView(frame: NSRect(x: 0, y: 0, width: slider.frame.width + 30, height: slider.frame.height + 10))
-    view.addSubview(slider)
-
-    item.view = view
-
-    menu.insertItem(item, at: 0)
-    menu.insertItem(withTitle: title, action: nil, keyEquivalent: "", at: 0)
-
-    var values: (UInt16, UInt16)?
-    let delay = display.needsLongerDelay ? UInt64(40 * kMillisecondScale) : nil
-
-    let tries = UInt(display.getPollingCount())
-    os_log("Polling %{public}@ times", type: .info, String(tries))
-
-    if tries != 0 {
-      values = display.readDDCValues(for: command, tries: tries, minReplyDelay: delay)
-    }
-
-    let (currentDDCValue, maxValue) = values ?? (UInt16(display.getValue(for: command)), UInt16(display.getMaxValue(for: command)))
-
-    display.saveValue(Int(currentDDCValue), for: command)
-    display.saveMaxValue(Int(maxValue), for: command)
-
-    os_log("%{public}@ (%{public}@):", type: .info, display.name, String(reflecting: command))
-    os_log(" - current ddc value: %{public}@ - from display? %{public}@", type: .info, String(currentDDCValue), String(values != nil))
-    os_log(" - maximum ddc value: %{public}@ - from display? %{public}@", type: .info, String(maxValue), String(values != nil))
-
-    if command != .audioSpeakerVolume {
-      slider.integerValue = Int(currentDDCValue)
-      slider.maxValue = Double(maxValue)
-    } else {
-      // If we're looking at the audio speaker volume, also retrieve the values for the mute command
-      var muteValues: (current: UInt16, max: UInt16)?
-
-      os_log("Polling %{public}@ times", type: .info, String(tries))
-      os_log("%{public}@ (%{public}@):", type: .info, display.name, String(reflecting: DDC.Command.audioMuteScreenBlank))
-
-      if tries != 0 {
-        muteValues = display.readDDCValues(for: .audioMuteScreenBlank, tries: tries, minReplyDelay: delay)
-      }
-
-      if let muteValues = muteValues {
-        os_log(" - current ddc value: %{public}@", type: .info, String(muteValues.current))
-        os_log(" - maximum ddc value: %{public}@", type: .info, String(muteValues.max))
-
-        display.saveValue(Int(muteValues.current), for: .audioMuteScreenBlank)
-        display.saveMaxValue(Int(muteValues.max), for: .audioMuteScreenBlank)
-      } else {
-        os_log(" - current ddc value: unknown", type: .info)
-        os_log(" - stored maximum ddc value: %{public}@", type: .info, String(display.getMaxValue(for: .audioMuteScreenBlank)))
-      }
-
-      // If the system is not currently muted, or doesn't support the mute command, display the current volume as the slider value
-      if muteValues == nil || muteValues!.current == 2 {
-        slider.integerValue = Int(currentDDCValue)
-      } else {
-        slider.integerValue = 0
-      }
-
-      slider.maxValue = Double(maxValue)
-    }
-
-    slider.isEnabled = true
-    return handler
-  }
-
-  // MARK: - Utilities
-
   /// Acquire Privileges (Necessary to listen to keyboard event globally)
   static func acquirePrivileges() {
     if !self.readPrivileges(prompt: true) {
@@ -133,6 +42,25 @@ class Utils: NSObject {
     }
   }
 
+  static func checksum(chk: UInt8, data: inout [UInt8], start: Int, end: Int) -> UInt8 {
+    var chkd: UInt8 = chk
+    for i in start ... end {
+      chkd ^= data[i]
+    }
+    return chkd
+  }
+
+  static func alert(text: String, info: String = "") {
+    let alert = NSAlert()
+    alert.messageText = text
+    if info != "" {
+      alert.informativeText = info
+    }
+    alert.alertStyle = NSAlert.Style.informational
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
+  }
+
   // MARK: - Enums
 
   /// UserDefault Keys for the app prefs
@@ -143,17 +71,29 @@ class Utils: NSObject {
     /// Does the app start when plugged to an external monitor
     case startWhenExternal
 
+    /// Hide menu icon
+    case hideMenuIcon
+
     /// Keys listened for (Brightness/Volume)
     case listenFor
 
     /// Show contrast sliders
     case showContrast
 
-    /// Lower contrast after brightness
-    case lowerContrast
+    /// Show volume sliders
+    case showVolume
+
+    /// Lower via software after brightness
+    case lowerSwAfterBrightness
+
+    /// Fallback to software control for external displays with no DDC
+    case fallbackSw
 
     /// Change Brightness/Volume for all screens
     case allScreens
+
+    /// Use F14 / F15 keys to control brightness
+    case altBrightnessKeys
 
     /// Friendly name changed
     case friendlyName
@@ -163,6 +103,9 @@ class Utils: NSObject {
 
     /// Used for notification when displays are updated in DisplayManager
     case displayListUpdate
+
+    /// Show advanced options under Displays tab in Preferences
+    case showAdvancedDisplays
   }
 
   /// Keys for the value of listenFor option
@@ -178,5 +121,28 @@ class Utils: NSObject {
 
     /// Don't listen for any keys
     case none = 3
+  }
+
+  enum PollingMode {
+    case none
+    case minimal
+    case normal
+    case heavy
+    case custom(value: Int)
+
+    var value: Int {
+      switch self {
+      case .none:
+        return 0
+      case .minimal:
+        return 5
+      case .normal:
+        return 10
+      case .heavy:
+        return 100
+      case let .custom(val):
+        return val
+      }
+    }
   }
 }

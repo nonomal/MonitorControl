@@ -1,5 +1,8 @@
 /* Shown in the main prefs window */
-"Advanced" = "Zaawansowane";
+"About" = "Informacje";
+
+/* Apple Silicon designation (shown after the version number in Preferences) */
+"Apple Silicon" = "Apple Silicon";
 
 /* Shown in the alert dialog */
 "Are you sure you want to enable a longer delay? Doing so may freeze your system and require a restart. Start at login will be disabled as a safety measure." = "Czy na pewno chcesz ustawić większe opóźnienie? Może to skutkować zawieszeniem systemu i koniecznością restartu. Uruchamianie programu podczas logowania zostanie wyłączone.";
@@ -13,26 +16,41 @@
 /* Build */
 "Build" = "Kompilacja";
 
+/* Shown in the Display Preferences */
+"Built-in Display" = "Wbudowany Wyświetlacz";
+
 /* Shown in menu */
 "Contrast" = "Kontrast";
 
-/* Shown in menu */
-"Default" = "Domyślnie";
+/* Version */
+"Copyright Ⓒ MonitorControl, " = "Copyright Ⓒ MonitorControl, ";
 
-/* No comment provided by engineer. */
-"Display" = "Wyświetlacz";
+/* Shown in the main prefs window */
+"Displays" = "Wyświetlacze";
 
 /* Shown in the alert dialog */
-"Enable Longer Delay?" = "Enable Longer Delay?";
+"Enable Longer Delay?" = "Włączyć dłuższe opóźnienie?";
+
+/* Shown in the Display Preferences */
+"External Display" = "Zewnętrzny Wyświetlacz";
 
 /* Shown in the main prefs window */
 "General" = "Ogólne";
 
-/* Shown in the main prefs window */
-"Keys" = "Klawisze";
+/* Shown in the Display Preferences */
+"Hardware (CoreDisplay)" = "Hardware (CoreDisplay)";
+
+/* Shown in the Display Preferences */
+"Hardware (DDC)" = "Hardware (DDC)";
+
+/* Intel designation (shown after the version number in Preferences) */
+"Intel" = "Intel";
 
 /* Shown in the alert dialog */
 "No" = "Nie";
+
+/* Shown in the Display Preferences */
+"No Control Available" = "Brak dostępnego sterowania";
 
 /* Shown in menu */
 "No supported display found" = "Nie znaleziono obsługiwanego wyświetlacza";
@@ -40,25 +58,40 @@
 /* Shown in the alert dialog */
 "Ok" = "Ok";
 
-/* Shown in Preferences window */
-"Preferences" = "Preferencje";
+/* Shown in the Display Preferences */
+"Other Display" = "Inny Wyświetlacz";
 
 /* Shown in the alert dialog */
-"Reset Preferences?" = "Reset Preferences?";
+"Reset Preferences?" = "Zresetować Preferencje?";
 
-/* Shown in menu */
-"Set as default" = "Ustaw jako domyślne";
+/* Shown in the alert dialog */
+"Safe Mode Activated" = "Safe Mode Activated";
+
+/* Shown in the alert dialog */
+"Shift was pressed during launch. MonitorControl started in safe mode. Default preferences are reloaded, DDC read is blocked." = "Shift was pressed during launch. MonitorControl started in safe mode. Default preferences are reloaded, DDC read is blocked.";
 
 /* Shown in the alert dialog */
 "Shortcuts not available" = "Skróty klawiszowe niedostępne";
+
+/* Shown in the Display Preferences */
+"Software (Forced)" = "Software (Wymuszone)";
+
+/* Shown in the Display Preferences */
+"Software Only" = "Wyłącznie Software";
 
 /* Unknown display name
  Unknown model
  Unknown vendor */
 "Unknown" = "Nieznany";
 
+/* Shown in the Display Preferences */
+"Unspecified" = "Nieokreślone";
+
 /* Version */
 "Version" = "Wersja";
+
+/* Shown in the Display Preferences */
+"Virtual Display" = "Wirtualny Wyświetlacz";
 
 /* Shown in menu */
 "Volume" = "Głośność";
