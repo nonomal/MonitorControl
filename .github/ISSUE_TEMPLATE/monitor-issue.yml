@@ -1,6 +1,6 @@
 name: Monitor Issue
 description: MonitorControl is not working as expected on my monitor.
-labels: ["Type: Monitor Issue"]
+labels: ["Monitor Issue"]
 assignees: []
 body:
   - type: checkboxes
@@ -10,7 +10,7 @@ body:
       options:
         - label: Searched for existing issues
           required: true
-        - label: Looked through [the wiki](https://github.com/MonitorControl/MonitorControl/wiki)
+        - label: Read through [the Monitor-Troubleshooting Wiki](https://github.com/MonitorControl/MonitorControl/wiki/Monitor-Troubleshooting)
           required: true
         - label: Updated MonitorControl to the latest version (if applicable)
           required: true

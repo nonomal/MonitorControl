@@ -1,3 +1,5 @@
+//  Copyright © MonitorControl. @JoniVR, @theOneyouseek, @waydabber and others
+
 import Cocoa
 import os.log
 import Preferences
@@ -8,80 +10,162 @@ class MainPrefsViewController: NSViewController, PreferencePane {
   let preferencePaneTitle: String = NSLocalizedString("General", comment: "Shown in the main prefs window")
 
   var toolbarItemIcon: NSImage {
-    if #available(macOS 11.0, *) {
+    if !DEBUG_MACOS10, #available(macOS 11.0, *) {
       return NSImage(systemSymbolName: "switch.2", accessibilityDescription: "Display")!
     } else {
-      // Fallback on earlier versions
-      return NSImage(named: NSImage.preferencesGeneralName)!
+      return NSImage(named: NSImage.infoName)!
     }
   }
 
-  let prefs = UserDefaults.standard
-
-  @IBOutlet var versionLabel: NSTextField!
   @IBOutlet var startAtLogin: NSButton!
-  @IBOutlet var showContrastSlider: NSButton!
-  @IBOutlet var lowerContrast: NSButton!
+  @IBOutlet var automaticUpdateCheck: NSButton!
+  @IBOutlet var allowZeroSwBrightness: NSButton!
+  @IBOutlet var combinedBrightness: NSButton!
+  @IBOutlet var enableSmooth: NSButton!
+  @IBOutlet var enableBrightnessSync: NSButton!
+  @IBOutlet var startupAction: NSPopUpButton!
+  @IBOutlet var rowDoNothingStartupText: NSGridRow!
+  @IBOutlet var rowWriteStartupText: NSGridRow!
+  @IBOutlet var rowReadStartupText: NSGridRow!
 
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    self.setVersionNumber()
+  func updateGridLayout() {
+    if self.startupAction.selectedTag() == StartupAction.doNothing.rawValue {
+      self.rowDoNothingStartupText.isHidden = false
+      self.rowWriteStartupText.isHidden = true
+      self.rowReadStartupText.isHidden = true
+    } else if self.startupAction.selectedTag() == StartupAction.write.rawValue {
+      self.rowDoNothingStartupText.isHidden = true
+      self.rowWriteStartupText.isHidden = false
+      self.rowReadStartupText.isHidden = true
+    } else {
+      self.rowDoNothingStartupText.isHidden = true
+      self.rowWriteStartupText.isHidden = true
+      self.rowReadStartupText.isHidden = false
+    }
   }
 
   @available(macOS, deprecated: 10.10)
-  override func viewWillAppear() {
-    super.viewWillAppear()
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    self.populateSettings()
+  }
+
+  @available(macOS, deprecated: 10.10)
+  func populateSettings() {
+    // This is marked as deprectated but according to the function header it still does not have a replacement as of macOS 12 Monterey and is valid to use.
     let startAtLogin = (SMCopyAllJobDictionaries(kSMDomainUserLaunchd).takeRetainedValue() as? [[String: AnyObject]])?.first { $0["Label"] as? String == "\(Bundle.main.bundleIdentifier!)Helper" }?["OnDemand"] as? Bool ?? false
     self.startAtLogin.state = startAtLogin ? .on : .off
-    self.showContrastSlider.state = self.prefs.bool(forKey: Utils.PrefKeys.showContrast.rawValue) ? .on : .off
-    self.lowerContrast.state = self.prefs.bool(forKey: Utils.PrefKeys.lowerContrast.rawValue) ? .on : .off
+    self.automaticUpdateCheck.state = prefs.bool(forKey: PrefKey.SUEnableAutomaticChecks.rawValue) ? .on : .off
+    self.combinedBrightness.state = prefs.bool(forKey: PrefKey.disableCombinedBrightness.rawValue) ? .off : .on
+    self.allowZeroSwBrightness.state = prefs.bool(forKey: PrefKey.allowZeroSwBrightness.rawValue) ? .on : .off
+    self.enableSmooth.state = prefs.bool(forKey: PrefKey.disableSmoothBrightness.rawValue) ? .off : .on
+    self.enableBrightnessSync.state = prefs.bool(forKey: PrefKey.enableBrightnessSync.rawValue) ? .on : .off
+    self.startupAction.selectItem(withTag: prefs.integer(forKey: PrefKey.startupAction.rawValue))
+    // Preload Display preferences to some extent to properly set up size in orther that animation won't fail
+    menuslidersPrefsVc?.view.layoutSubtreeIfNeeded()
+    keyboardPrefsVc?.view.layoutSubtreeIfNeeded()
+    displaysPrefsVc?.view.layoutSubtreeIfNeeded()
+    aboutPrefsVc?.view.layoutSubtreeIfNeeded()
+    self.updateGridLayout()
   }
 
   @IBAction func startAtLoginClicked(_ sender: NSButton) {
     switch sender.state {
     case .on:
-      Utils.setStartAtLogin(enabled: true)
+      app.setStartAtLogin(enabled: true)
     case .off:
-      Utils.setStartAtLogin(enabled: false)
+      app.setStartAtLogin(enabled: false)
     default: break
     }
   }
 
-  @IBAction func showContrastSliderClicked(_ sender: NSButton) {
+  @IBAction func automaticUpdateCheck(_ sender: NSButton) {
     switch sender.state {
     case .on:
-      self.prefs.set(true, forKey: Utils.PrefKeys.showContrast.rawValue)
+      prefs.set(true, forKey: PrefKey.SUEnableAutomaticChecks.rawValue)
     case .off:
-      self.prefs.set(false, forKey: Utils.PrefKeys.showContrast.rawValue)
+      prefs.set(false, forKey: PrefKey.SUEnableAutomaticChecks.rawValue)
     default: break
     }
-
-    #if DEBUG
-      os_log("Toggle show contrast slider state: %{public}@", type: .info, sender.state == .on ? "on" : "off")
-    #endif
-
-    NotificationCenter.default.post(name: Notification.Name(Utils.PrefKeys.showContrast.rawValue), object: nil)
   }
 
-  @IBAction func lowerContrastClicked(_ sender: NSButton) {
+  @IBAction func combinedBrightness(_ sender: NSButton) {
+    for display in DisplayManager.shared.getDdcCapableDisplays() where !display.isSw() {
+      _ = display.setDirectBrightness(1)
+    }
+    DisplayManager.shared.resetSwBrightnessForAllDisplays(async: false)
     switch sender.state {
     case .on:
-      self.prefs.set(true, forKey: Utils.PrefKeys.lowerContrast.rawValue)
+      prefs.set(false, forKey: PrefKey.disableCombinedBrightness.rawValue)
     case .off:
-      self.prefs.set(false, forKey: Utils.PrefKeys.lowerContrast.rawValue)
+      prefs.set(true, forKey: PrefKey.disableCombinedBrightness.rawValue)
     default: break
     }
-
-    #if DEBUG
-      os_log("Toggle lower contrast after brightness state: %{public}@", type: .info, sender.state == .on ? "on" : "off")
-    #endif
+    app.configure()
   }
 
-  fileprivate func setVersionNumber() {
-    let versionName = NSLocalizedString("Version", comment: "Version")
-    let buildName = NSLocalizedString("Build", comment: "Build")
-    let versionNumber = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "error"
-    let buildNumber = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") ?? "error"
-    self.versionLabel.stringValue = "\(versionName) \(versionNumber) (\(buildName) \(buildNumber))"
+  @IBAction func allowZeroSwBrightness(_ sender: NSButton) {
+    switch sender.state {
+    case .on:
+      prefs.set(true, forKey: PrefKey.allowZeroSwBrightness.rawValue)
+    case .off:
+      prefs.set(false, forKey: PrefKey.allowZeroSwBrightness.rawValue)
+    default: break
+    }
+    for display in DisplayManager.shared.getOtherDisplays() {
+      _ = display.setDirectBrightness(1)
+      _ = display.setSwBrightness(1)
+    }
+    self.updateGridLayout()
+    app.configure()
+  }
+
+  @IBAction func enableSmooth(_ sender: NSButton) {
+    switch sender.state {
+    case .on:
+      prefs.set(false, forKey: PrefKey.disableSmoothBrightness.rawValue)
+    case .off:
+      prefs.set(true, forKey: PrefKey.disableSmoothBrightness.rawValue)
+    default: break
+    }
+  }
+
+  @IBAction func enableBrightnessSync(_ sender: NSButton) {
+    switch sender.state {
+    case .on:
+      prefs.set(true, forKey: PrefKey.enableBrightnessSync.rawValue)
+    case .off:
+      prefs.set(false, forKey: PrefKey.enableBrightnessSync.rawValue)
+    default: break
+    }
+  }
+
+  @IBAction func startupAction(_ sender: NSPopUpButton) {
+    prefs.set(sender.selectedTag(), forKey: PrefKey.startupAction.rawValue)
+    self.updateGridLayout()
+  }
+
+  @available(macOS, deprecated: 10.10)
+  func resetSheetModalHander(modalResponse: NSApplication.ModalResponse) {
+    if modalResponse == NSApplication.ModalResponse.alertFirstButtonReturn {
+      app.preferenceReset()
+      self.populateSettings()
+      menuslidersPrefsVc?.populateSettings()
+      keyboardPrefsVc?.populateSettings()
+      displaysPrefsVc?.populateSettings()
+    }
+  }
+
+  @available(macOS, deprecated: 10.10)
+  @IBAction func resetPrefsClicked(_: NSButton) {
+    let alert = NSAlert()
+    alert.messageText = NSLocalizedString("Reset Preferences?", comment: "Shown in the alert dialog")
+    alert.informativeText = NSLocalizedString("Are you sure you want to reset all preferences?", comment: "Shown in the alert dialog")
+    alert.addButton(withTitle: NSLocalizedString("Yes", comment: "Shown in the alert dialog"))
+    alert.addButton(withTitle: NSLocalizedString("No", comment: "Shown in the alert dialog"))
+    alert.alertStyle = NSAlert.Style.warning
+    if let window = self.view.window {
+      alert.beginSheetModal(for: window, completionHandler: { modalResponse in self.resetSheetModalHander(modalResponse: modalResponse) })
+    }
   }
 }

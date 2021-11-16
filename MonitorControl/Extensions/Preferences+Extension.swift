@@ -1,16 +1,23 @@
-//
-//  Preferences+Extension.swift
-//  MonitorControl
-//
-//  Created by Joni Van Roost on 22/11/2020.
-//  Copyright © 2020 MonitorControl. All rights reserved.
-//
+//  Copyright © MonitorControl. @JoniVR, @theOneyouseek, @waydabber and others
+
+import Cocoa
 
 import Preferences
 
 extension Preferences.PaneIdentifier {
   static let main = Self("Main")
-  static let keys = Self("Keys")
-  static let advanced = Self("Advanced")
-  static let display = Self("Display")
+  static let menusliders = Self("Menu & Sliders")
+  static let keyboard = Self("Keyboard")
+  static let displays = Self("Displays")
+  static let about = Self("About")
+}
+
+public extension PreferencesWindowController {
+  override func keyDown(with event: NSEvent) {
+    if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command, let key = event.charactersIgnoringModifiers {
+      if key == "w" {
+        self.close()
+      }
+    }
+  }
 }

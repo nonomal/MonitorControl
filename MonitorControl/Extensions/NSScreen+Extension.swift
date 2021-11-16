@@ -1,12 +1,14 @@
+//  Copyright © MonitorControl. @JoniVR, @theOneyouseek, @waydabber and others
+
 import Cocoa
 
 public extension NSScreen {
   var displayID: CGDirectDisplayID {
-    return (self.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID)!
+    (self.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID)!
   }
 
   var vendorNumber: UInt32? {
-    switch self.displayID.vendorNumber {
+    switch CGDisplayVendorNumber(self.displayID) {
     case 0xFFFF_FFFF:
       return nil
     case let vendorNumber:
@@ -15,7 +17,7 @@ public extension NSScreen {
   }
 
   var modelNumber: UInt32? {
-    switch self.displayID.modelNumber {
+    switch CGDisplayModelNumber(self.displayID) {
     case 0xFFFF_FFFF:
       return nil
     case let modelNumber:
@@ -24,7 +26,7 @@ public extension NSScreen {
   }
 
   var serialNumber: UInt32? {
-    switch self.displayID.serialNumber {
+    switch CGDisplaySerialNumber(self.displayID) {
     case 0x0000_0000:
       return nil
     case let serialNumber:
@@ -47,26 +49,13 @@ public extension NSScreen {
     while case let object = IOIteratorNext(servicePortIterator), object != 0 {
       let dict = (IODisplayCreateInfoDictionary(object, UInt32(kIODisplayOnlyPreferredName)).takeRetainedValue() as NSDictionary as? [String: AnyObject])!
 
-      if dict[kDisplayVendorID] as? UInt32 == self.vendorNumber,
-         dict[kDisplayProductID] as? UInt32 == self.modelNumber,
-         dict[kDisplaySerialNumber] as? UInt32 == self.serialNumber
-      {
-        if let productName = dict["DisplayProductName"] as? [String: String],
-           let firstKey = Array(productName.keys).first
-        {
+      if dict[kDisplayVendorID] as? UInt32 == self.vendorNumber, dict[kDisplayProductID] as? UInt32 == self.modelNumber, dict[kDisplaySerialNumber] as? UInt32 == self.serialNumber {
+        if let productName = dict["DisplayProductName"] as? [String: String], let firstKey = Array(productName.keys).first {
           return productName[firstKey]!
         }
       }
     }
 
     return nil
-  }
-
-  var isBuiltin: Bool {
-    return CGDisplayIsBuiltin(self.displayID) != 0
-  }
-
-  static func getByDisplayID(displayID: CGDirectDisplayID) -> NSScreen? {
-    return NSScreen.screens.first { $0.displayID == displayID }
   }
 }
